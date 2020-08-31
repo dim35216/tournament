@@ -13,9 +13,9 @@ public class Team {
 
     @XmlAttribute
     private UUID id;
-    private Set<Teilnehmer> teilnehmerListe;
     private String name;
     private int max_teilnehmer;
+    private Set<UUID> teilnehmerListe;
 
     public Team() {}
 
@@ -23,33 +23,28 @@ public class Team {
         this.name = name;
         this.max_teilnehmer = max_teilnehmer;
         id = UUID.randomUUID();
-        teilnehmerListe = new HashSet<Teilnehmer>();
+        teilnehmerListe = new HashSet<UUID>();
     }
 
     public void addTeilnehmer(Teilnehmer t) {
         if(teilnehmerListe.size() < max_teilnehmer) {
-            teilnehmerListe.add(t);
+            teilnehmerListe.add(t.getId());
         } else {
             throw new MyRestException(500, "Das Team " + this + " hat bereits de maximale Anzahl an Teilnehmer erreicht");
         }
     }
 
     public void löschenTeilnehmer(Teilnehmer t) {
-        if(teilnehmerListe.contains(t)) {
-            teilnehmerListe.remove(t);
+        if(teilnehmerListe.contains(t.getId())) {
+            teilnehmerListe.remove(t.getId());
         } else {
             throw new MyRestException(500, "Im Team " + this + " ist kein Teilnehmer " + t + " eingeschrieben");
         }
     }
 
     public boolean enthältTeilnehmerById(UUID teilnehmerid) {
-        if(teilnehmerid == null) {
-            return false;
-        }
-        for( Teilnehmer teilnehmer : teilnehmerListe) {
-            if(teilnehmerid.compareTo(teilnehmer.getId()) == 0) {
-                return true;
-            }
+        if(teilnehmerListe.contains(teilnehmerid)) {
+            return true;
         }
         return false;
     }
