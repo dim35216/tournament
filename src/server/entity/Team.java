@@ -58,6 +58,18 @@ public class Team {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if(o == null || !(o instanceof Team)) return false;
+        Team other = (Team) o;
+        return id.compareTo(other.id) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
+    @Override
     public String toString() {
         return name;
     }

@@ -3,13 +3,15 @@ var teams = [];
 var state_participants = "";
 var state_teams = "";
 var editingTeams = false;
+var initial_id_participants = 1;
+var initial_id_teams = 1;
 
 
 $(document).ready(function(){
 	update();
 	
-	$("#participant-submit-button").on("click", function(){
-		var newParticipant = ["", $("#participant-firstname").val(), $("#participant-lastname").val(), $("#participant-referee").prop("checked")];
+	$("#participant-submit-button").on("click", function() {
+		var newParticipant = ["" + initial_id_participants++, $("#participant-firstname").val(), $("#participant-lastname").val(), $("#participant-referee").prop("checked")];
 		participants.push(newParticipant);
 		updateParticipantsTable();
 		
@@ -31,10 +33,12 @@ $(document).ready(function(){
 		$("#participant-firstname").val("");
 		$("#participant-lastname").val("");
 		$("#participant-referee").prop("checked", false);
+		
+		console.log(participants);
 	});
 	
-	$("#team-submit-button").on("click", function(){
-		var newTeam = ["", $("#team-name").val(), 2, []];
+	$("#team-submit-button").on("click", function() {
+		var newTeam = ["" + initial_id_teams++, $("#team-name").val(), 2, []];
 		teams.push(newTeam);
 		updateTeamsTable();
 		
@@ -54,15 +58,21 @@ $(document).ready(function(){
 		});
 		
 		$("#team-name").val("");
+		
+		console.log(teams);
 	});
 	
-	/*$("#myaktualisierebutton").on("click", function(){
-		updateParticipants();
-	});*/
-	
-	$("#participants-table button").on("click", function () {
-		console.log("Löschen-Button gedrückt");
-		$(this).parent("td").parent("tr").remove();
+	$("#groups-create-button").on("click", function() {
+		$.ajax({
+			method: "POST",
+			headers: {  
+				"Accept": "application/json"
+			}, 
+			url: "http://localhost:8081/restapi/tournament/groups",
+			success: function(response) {
+				console.log(response);
+			}
+		});
 	});
 	
 });
@@ -137,15 +147,13 @@ function updateParticipantsTable() {
 	$("#participants-table").children("tbody").empty();
 	var i;
 	for(i = 0; i < participants.length; i++) {
-		$("#participants-table").children("tbody").append("<tr><td>" + participants[i][1] + "</td><td>" + participants[i][2] + "</td><td><input type=\"checkbox\" " + (participants[i][3] ? "checked":"") + " disabled/><label/></td><td><button onclick=\"deleteRowFromParticipants(this)\">Löschen</button></td></tr>");
+		$("#participants-table").children("tbody").append("<tr><td>" + participants[i][1] + "</td><td>" + participants[i][2] + "</td><td><input type=\"checkbox\" " + (participants[i][3] ? "checked":"") + " disabled/><label/></td><td><button class=\"delete-button\" onclick=\"deleteRowFromParticipants(this)\">Löschen</button></td></tr>");
 	}
 }
 
 function deleteRowFromParticipants(clickedButton) {
 	var id = participants[$(clickedButton).parent("td").parent("tr").index()][0];
 	participants.splice($(clickedButton).parent("td").parent("tr").index(), 1);
-	
-	$(clickedButton).parent("td").parent("tr").remove();
 	
 	$.ajax({
 		method: "DELETE",
@@ -157,6 +165,8 @@ function deleteRowFromParticipants(clickedButton) {
 			// console.log(response);
 		}
 	});
+	
+	updateParticipantsTable();
 }
 
 function updateTeams() {
@@ -188,8 +198,11 @@ function updateTeamsTable() {
 	$("#teams-table").children("tbody").empty();
 	var i;
 	for(i = 0; i < teams.length; i++) {
-		var newRow = $("<tr><td>" + teams[i][1] + "</td><td><button onclick=\"editRowFromTeams(this)\">Bearbeiten</button></td><td><button onclick=\"deleteRowFromTeams(this)\">Löschen</button></td></tr>");
+		var newRow = $("<tr><td>" + teams[i][1] + "</td><td><button class=\"edit-button\" onclick=\"editRowFromTeams(this)\">Teilnehmer hinzufügen</button></td><td><button class=\"delete-button\" onclick=\"deleteRowFromTeams(this)\">Löschen</button></td></tr>");
 		newRow.data("index", i);
+		if(teams[i][3].length == teams[i][2]) {
+			newRow.find(".edit-button").hide();
+		}
 		$("#teams-table").children("tbody").append(newRow);
 		
 		var j;
@@ -200,13 +213,16 @@ function updateTeamsTable() {
 			var k;
 			for(k = 0; k < participants.length; k++) {
 				if(participant_id.localeCompare(participants[k][0]) == 0) {
-					index_participant = i;
+					index_participant = k;
 					break;
 				}
 			}
 			
 			if(index_participant != -1) {
-				var newRow = $("<tr><td></td><td>" + participants[index_participant][1] + " " + participants[index_participant][2] + "</td><td><button onclick=\"removeParticipantFromTeam(this)\">Entfernen</button></td></tr>");
+				console.log("index_participant: " + index_participant);
+				console.log(typeof index_participant);
+				
+				var newRow = $("<tr><td></td><td>" + participants[index_participant][1] + " " + participants[index_participant][2] + "</td><td><button class=\"remove-button\" onclick=\"removeParticipantFromTeam(this)\">Entfernen</button></td></tr>");
 				newRow.data("index", i);
 				newRow.data("index_participant", index_participant);
 				$("#teams-table").children("tbody").append(newRow);
@@ -220,8 +236,6 @@ function deleteRowFromTeams(clickedButton) {
 	var id_team = teams[index_team][0];
 	teams.splice(index_team, 1);
 	
-	$(clickedButton).parent("td").parent("tr").remove();
-	
 	$.ajax({
 		method: "DELETE",
 		headers: {  
@@ -232,45 +246,65 @@ function deleteRowFromTeams(clickedButton) {
 			// console.log(response);
 		}
 	});
+	
+	updateTeamsTable();
 }
 
 function editRowFromTeams(clickedButton) {
 	editingTeams = true;
+	$("#team-submit-button").attr("disabled", true);
+	$(".edit-button, .remove-button, .delete-button").attr("disabled", true);
 	
-	$(clickedButton).parent("td").parent("tr").children().eq(2).replaceWith("<td><button onclick=\"saveRowFromTeams(this)\">Speichern</button></td>");
+	var index_team = $(clickedButton).parent("td").parent("tr").data("index");
+	var participants_in_team = teams[index_team][3];
 	
-	var optionList = "<select id=\"optionParticipantsForTeams\"><option value=0>---Teilnehmer auswählen---</option>";
+	$(clickedButton).parent("td").parent("tr").children().eq(2).replaceWith("<td><button class=\"select-button\" onclick=\"selectParticipantForTeam(this)\">Auswählen</button></td>");
+	
+	var optionList = "<select id=\"optionParticipantsForTeam\"><option value=0>---Teilnehmer auswählen---</option>";
 	var i;
 	for(i = 0; i < participants.length; i++) {
+		var already_in_team = false;
+		var j;
+		for(j = 0; j < participants_in_team.length; j++) {
+			if(participants_in_team[j].localeCompare(participants[i][0]) == 0) {
+				already_in_team = true;
+			}
+		}
+		if(already_in_team) {
+			continue;
+		}
 		optionList = optionList.concat("<option value=\"" + participants[i][0] + "\">" + participants[i][1] + " " + participants[i][2] + "</option>");
 	}
 	optionList = optionList.concat("</select>");
 	$(clickedButton).parent("td").parent("tr").children().eq(1).replaceWith("<td>" + optionList + "</td>");
 }
 
-function saveRowFromTeams(clickedButton) {
-	console.log($("#optionParticipantsForTeams").val());
-	var id_participant = $("#optionParticipantsForTeams").val();
+function selectParticipantForTeam(clickedButton) {
+	var id_participant = $("#optionParticipantsForTeam").val();
+	console.log("ID des gewählten Teilnehmers: " + id_participant);
 	
-	var index_team = $(clickedButton).parent("td").parent("tr").data("index");
-	var id_team = teams[index_team][0];
-	teams[index_team][3].push(id_participant);
-	
-	$.ajax({
-		method: "PUT",
-		headers: {  
-			"Accept": "application/json"
-		},
-		url: "http://localhost:8081/restapi/tournament/team/".concat(id_team) + "/add/".concat(id_participant),
-		success: function(response) {
-			console.log(response);
-		}
-	});
-	
-	$(clickedButton).parent("td").parent("tr").children().eq(1).replaceWith("<td><button onclick=\"editRowFromTeams(this)\">Bearbeiten</button></td>");
-	$(clickedButton).parent("td").parent("tr").children().eq(2).replaceWith("<td><button onclick=\"deleteRowFromTeams(this)\">Löschen</button></td>");
+	if("0".localeCompare(id_participant) != 0) {
+		var index_team = $(clickedButton).parent("td").parent("tr").data("index");
+		var id_team = teams[index_team][0];
+		teams[index_team][3].push(id_participant);
+
+		$.ajax({
+			method: "PUT",
+			headers: {  
+				"Accept": "application/json"
+			},
+			url: "http://localhost:8081/restapi/tournament/team/".concat(id_team) + "/add/".concat(id_participant),
+			success: function(response) {
+				console.log(response);
+			}
+		});
+	}
 	
 	editingTeams = false;
+	$("#team-submit-button").attr("disabled", false);
+	$(".edit-button, .remove-button, .delete-button").attr("disabled", false);
+	
+	updateTeamsTable();
 }
 
 function removeParticipantFromTeam(clickedButton) {
@@ -280,7 +314,8 @@ function removeParticipantFromTeam(clickedButton) {
 	var index_participant = $(clickedButton).parent("td").parent("tr").data("index_participant");
 	var id_participant = participants[index_participant][0];
 	
-	$(clickedButton).parent("td").parent("tr").remove();
+	var pos_participant_in_team = teams[index_team][3].indexOf(id_participant);
+	teams[index_team][3].splice(pos_participant_in_team, 1);
 	
 	$.ajax({
 		method: "PUT",
@@ -292,6 +327,10 @@ function removeParticipantFromTeam(clickedButton) {
 			console.log(response);
 		}
 	});
+	
+	updateTeamsTable();
+	
+	console.log(teams);
 }
 
 
